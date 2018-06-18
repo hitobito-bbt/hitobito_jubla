@@ -15,22 +15,20 @@ class CreateMissingAlumnusMembers < ActiveRecord::Migration
 
   def find_missing_people_sql
     <<-SQL
-    SELECT DISTINCT person_id, group_id, roles.type, groups.type FROM roles 
+    SELECT DISTINCT person_id, layer_group_id, roles.type FROM roles 
     INNER JOIN groups ON roles.group_id = groups.id
+    WHERE roles.type IN (#{sanitize(role_types)})
     AND roles.deleted_at IS NOT NULL
-    AND ( groups.type = 'Group::Flock' OR
-        roles.type = 'Group::ChildGroup::Leader')
     AND person_id NOT IN (
       SELECT DISTINCT person_id FROM roles
-      INNER JOIN groups ON roles.group_id = groups.id
-      WHERE roles.deleted_at IS NULL
-      AND groups.type = 'Group::Flock'
+      INNER JOIN groups g ON roles.group_id = g.id
+      WHERE g.layer_group_id = layer_group_id
+      AND roles.deleted_at IS NULL
+      AND (
+        roles.type IN (#{sanitize(role_types)}) OR
+        roles.type IN ('Group::FlockAlumnusGroup::Member', 'Group::ChildGroup::Child'))
     )
-    AND person_id NOT IN (
-      SELECT DISTINCT person_id FROM roles
-      WHERE roles.type = 'Group::Flock::Alumnus'
-    )
-    GROUP BY person_id, group_id
+    GROUP BY person_id, layer_group_id
     SQL
   end
   
@@ -43,10 +41,30 @@ class CreateMissingAlumnusMembers < ActiveRecord::Migration
   end
 
   def values(list, now)
-    list.collect do |person_id, group_id, role_type, group_type|
+    list.collect do |person_id, group_id, role_type|
       "(#{now}, #{now}, #{person_id}, #{group_id},"\
         " #{role_type.constantize.model_name.human},"\
-        " #{group_type}::Alumnus)"
+        " Group::FlockAlumnusGroup::Member)"
     end
   end
+
+  def role_types
+    ["Group::Flock::President",
+     "Group::Flock::Guide",
+     "Group::Flock::Leader",
+     "Group::Flock::Treasurer",
+     "Group::Flock::GroupAdmin",
+     "Group::Flock::DispatchAddress",
+     "Group::Flock::CampLeader",
+     "Group::Flock::Advisor",
+     "Group::Flock::Coach",
+     "Group::ChildGroup::Leader",
+     "Group::ChildGroup::GroupAdmin",
+     "Group::ChildGroup::DispatchAddress"]
+  end
+
+  def sanitize(list)
+    list.collect { |item| ActiveRecord::Base.sanitize(item) }.join(',')
+  end
+
 end
