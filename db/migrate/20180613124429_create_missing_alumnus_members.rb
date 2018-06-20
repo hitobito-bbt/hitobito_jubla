@@ -69,7 +69,6 @@ class CreateMissingAlumnusMembers < ActiveRecord::Migration
      "Group::Flock::DispatchAddress",
      "Group::Flock::CampLeader",
      "Group::Flock::Advisor",
-     "Group::Flock::Coach",
      "Group::ChildGroup::Leader",
      "Group::ChildGroup::GroupAdmin",
      "Group::ChildGroup::DispatchAddress"]
